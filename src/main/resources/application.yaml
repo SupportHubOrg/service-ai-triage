@@ -1,0 +1,96 @@
+spring:
+  application:
+    name: ai-triage-service
+  ai:
+    model:
+      chat: ${SPRING_AI_CHAT_MODEL:none}
+      embedding: ${SPRING_AI_EMBEDDING_MODEL:none}
+      image: ${SPRING_AI_IMAGE_MODEL:none}
+    openai-sdk:
+      api-key: ${OPENAI_API_KEY:}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/triage}
+    username: ${DB_USERNAME:triage}
+    password: ${DB_PASSWORD:triage}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 2147483647
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 35000
+        linger.ms: 20
+        request.timeout.ms: 10000
+        retry.backoff.ms: 1000
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:ai-triage-service}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+application:
+  integration-events:
+    contracts:
+      ai-analysis-completed:
+        event-type: ${EVENT_AI_ANALYSIS_COMPLETED:AiAnalysisCompleted}
+        version: ${EVENT_AI_ANALYSIS_COMPLETED_VERSION:1}
+      ai-analysis-failed:
+        event-type: ${EVENT_AI_ANALYSIS_FAILED:AiAnalysisFailed}
+        version: ${EVENT_AI_ANALYSIS_FAILED_VERSION:1}
+  kafka:
+    consumer:
+      ticket-management-events: ${KAFKA_TOPIC_TICKET_MANAGEMENT_EVENTS:ticket-management-events}
+      knowledge-base-events: ${KAFKA_TOPIC_KNOWLEDGE_BASE_EVENTS:knowledge-base-events}
+      organization-access-events: ${KAFKA_TOPIC_ORGANIZATION_ACCESS_EVENTS:organization-access-events}
+      concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
+    producer:
+      ai-triage-events: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
+    dlt:
+      name: ${KAFKA_TOPIC_AI_TRIAGE_DLT:ai-triage-events-dlt}
+      backoff-ms: ${KAFKA_DLT_BACKOFF_MS:1000}
+      max-attempts: ${KAFKA_DLT_MAX_ATTEMPTS:5}
+    topics:
+      defaults:
+        partitions: ${KAFKA_TOPIC_PARTITIONS:3}
+        replicas: ${KAFKA_TOPIC_REPLICAS:1}
+        min-in-sync-replicas: ${KAFKA_TOPIC_MIN_ISR:1}
+      owned:
+        ai-triage-events: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
+        ai-triage-events-dlt: ${KAFKA_TOPIC_AI_TRIAGE_DLT:ai-triage-events-dlt}
+  outbox:
+    batch-size: ${OUTBOX_BATCH_SIZE:50}
+    poll-delay-ms: ${OUTBOX_POLL_DELAY_MS:2000}
+    lock-at-most-for: ${OUTBOX_LOCK_AT_MOST_FOR:PT30S}
+    lock-at-least-for: ${OUTBOX_LOCK_AT_LEAST_FOR:PT0S}
+    batch-send-timeout: ${OUTBOX_BATCH_SEND_TIMEOUT:PT40S}
+    retry-backoff: ${OUTBOX_RETRY_BACKOFF:PT1S}
+    max-retry-backoff: ${OUTBOX_MAX_RETRY_BACKOFF:PT5M}
+    stuck-timeout: ${OUTBOX_STUCK_TIMEOUT:PT2M}
+    routing:
+      triage:
+        event-topics:
+          AiAnalysisCompleted: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
+          AiAnalysisFailed: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
