@@ -60,6 +60,15 @@ application:
       ai-analysis-failed:
         event-type: ${EVENT_AI_ANALYSIS_FAILED:AiAnalysisFailed}
         version: ${EVENT_AI_ANALYSIS_FAILED_VERSION:1}
+      tag-created:
+        event-type: ${EVENT_TAG_CREATED:TagCreated}
+        version: ${EVENT_TAG_CREATED_VERSION:1}
+      tag-deleted:
+        event-type: ${EVENT_TAG_DELETED:TagDeleted}
+        version: ${EVENT_TAG_DELETED_VERSION:1}
+      tag-ai-setting-updated:
+        event-type: ${EVENT_TAG_AI_SETTING_UPDATED:TagAISettingUpdated}
+        version: ${EVENT_TAG_AI_SETTING_UPDATED_VERSION:1}
   kafka:
     consumer:
       ticket-management-events: ${KAFKA_TOPIC_TICKET_MANAGEMENT_EVENTS:ticket-management-events}
