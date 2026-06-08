@@ -7,14 +7,14 @@ import java.util.UUID;
 
 /**
  * Single sanctioned conversion between the value object and its raw wire/column form. The static
- * {@code toRaw}/{@code toPlainText} is the one exit point (used by integration events); the JPA
+ * {@code toRaw} is the one exit point (used by integration events / external wire formats); the JPA
  * {@link jakarta.persistence.AttributeConverter} methods delegate to it, so the unwrap lives once.
  */
 @Converter(autoApply = true)
-public class TagIdConverter implements AttributeConverter<TagId, UUID> {
+public class DraftIdConverter implements AttributeConverter<DraftId, UUID> {
 
     /** Sanctioned exit point for crossing into integration events / external wire formats. */
-    public static UUID toRaw(TagId id) {
+    public static UUID toRaw(DraftId id) {
         if (id == null) {
             return null;
         }
@@ -22,15 +22,15 @@ public class TagIdConverter implements AttributeConverter<TagId, UUID> {
     }
 
     @Override
-    public UUID convertToDatabaseColumn(TagId attribute) {
+    public UUID convertToDatabaseColumn(DraftId attribute) {
         return toRaw(attribute);
     }
 
     @Override
-    public TagId convertToEntityAttribute(UUID dbData) {
+    public DraftId convertToEntityAttribute(UUID dbData) {
         if (dbData == null) {
             return null;
         }
-        return TagId.of(dbData);
+        return DraftId.of(dbData);
     }
 }

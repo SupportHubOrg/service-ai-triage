@@ -7,14 +7,14 @@ import java.util.UUID;
 
 /**
  * Single sanctioned conversion between the value object and its raw wire/column form. The static
- * {@code toRaw}/{@code toPlainText} is the one exit point (used by integration events); the JPA
+ * {@code toRaw} is the one exit point (used by the external vector store document id); the JPA
  * {@link jakarta.persistence.AttributeConverter} methods delegate to it, so the unwrap lives once.
  */
 @Converter(autoApply = true)
-public class TicketIdConverter implements AttributeConverter<TicketId, UUID> {
+public class VectorDocumentIdConverter implements AttributeConverter<VectorDocumentId, UUID> {
 
-    /** Sanctioned exit point for crossing into integration events / external wire formats. */
-    public static UUID toRaw(TicketId id) {
+    /** Sanctioned exit point for crossing into the external vector store / wire formats. */
+    public static UUID toRaw(VectorDocumentId id) {
         if (id == null) {
             return null;
         }
@@ -22,15 +22,15 @@ public class TicketIdConverter implements AttributeConverter<TicketId, UUID> {
     }
 
     @Override
-    public UUID convertToDatabaseColumn(TicketId attribute) {
+    public UUID convertToDatabaseColumn(VectorDocumentId attribute) {
         return toRaw(attribute);
     }
 
     @Override
-    public TicketId convertToEntityAttribute(UUID dbData) {
+    public VectorDocumentId convertToEntityAttribute(UUID dbData) {
         if (dbData == null) {
             return null;
         }
-        return TicketId.of(dbData);
+        return VectorDocumentId.of(dbData);
     }
 }

@@ -2,12 +2,17 @@ package com.supporthub.triage.knowledge.application;
 
 import com.supporthub.triage.knowledge.persistence.KnowledgeArticleChunkEntity;
 import com.supporthub.triage.knowledge.persistence.KnowledgeArticleTagRepository;
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.ArticleIds;
+import com.supporthub.triage.shared.identity.ChunkIds;
+import com.supporthub.triage.shared.identity.OrganizationIdConverter;
+import com.supporthub.triage.shared.identity.TagIds;
+import com.supporthub.triage.shared.identity.VectorDocumentIdConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -21,7 +26,7 @@ public class KnowledgeArticleChunkDocumentMapper {
 
     public Document toDocument(KnowledgeArticleChunkEntity chunk) {
         return Document.builder()
-                .id(chunk.getVectorDocumentId().toString())
+                .id(VectorDocumentIdConverter.toRaw(chunk.getVectorDocumentId()).toString())
                 .text(chunk.getContent())
                 .metadata(metadata(chunk))
                 .build();
@@ -29,9 +34,9 @@ public class KnowledgeArticleChunkDocumentMapper {
 
     private Map<String, Object> metadata(KnowledgeArticleChunkEntity chunk) {
         return Map.of(
-                "organizationId", chunk.getOrganizationId().toString(),
-                "articleId", chunk.getArticleId().toString(),
-                "chunkId", chunk.getChunkId().toString(),
+                "organizationId", OrganizationIdConverter.toRaw(chunk.getOrganizationId()).toString(),
+                "articleId", ArticleIds.toRaw(chunk.getArticleId()).toString(),
+                "chunkId", ChunkIds.toRaw(chunk.getChunkId()).toString(),
                 "chunkIndex", chunk.getChunkIndex(),
                 "chunkCount", chunk.getChunkCount(),
                 "docType", DOCUMENT_TYPE,
@@ -42,10 +47,10 @@ public class KnowledgeArticleChunkDocumentMapper {
         );
     }
 
-    private String tagIds(UUID articleId) {
+    private String tagIds(ArticleId articleId) {
         return tagRepository.findByIdArticleId(articleId)
                 .stream()
-                .map(tag -> tag.getId().getTagId().toString())
+                .map(tag -> TagIds.toRaw(tag.getId().getTagId()).toString())
                 .sorted()
                 .collect(Collectors.joining(","));
     }

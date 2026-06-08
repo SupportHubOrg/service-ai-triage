@@ -1,5 +1,8 @@
 package com.supporthub.triage.knowledge.persistence;
 
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.OrganizationId;
+import com.supporthub.triage.shared.identity.TagId;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -9,7 +12,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "knowledge_article_tag_projection")
@@ -21,12 +23,12 @@ public class KnowledgeArticleTagEntity {
     private KnowledgeArticleTagId id;
 
     @Column(name = "organization_id", nullable = false)
-    private UUID organizationId;
+    private OrganizationId organizationId;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    public static KnowledgeArticleTagEntity of(UUID articleId, UUID tagId, UUID organizationId, Instant now) {
+    public static KnowledgeArticleTagEntity of(ArticleId articleId, TagId tagId, OrganizationId organizationId, Instant now) {
         var tag = new KnowledgeArticleTagEntity();
         tag.id = KnowledgeArticleTagId.of(articleId, tagId);
         tag.organizationId = organizationId;

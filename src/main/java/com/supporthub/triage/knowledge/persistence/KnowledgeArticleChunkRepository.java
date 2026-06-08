@@ -1,5 +1,7 @@
 package com.supporthub.triage.knowledge.persistence;
 
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.ChunkId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -7,17 +9,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
-public interface KnowledgeArticleChunkRepository extends JpaRepository<KnowledgeArticleChunkEntity, UUID> {
+public interface KnowledgeArticleChunkRepository extends JpaRepository<KnowledgeArticleChunkEntity, ChunkId> {
 
-    boolean existsByArticleIdAndContentHash(UUID articleId, String contentHash);
+    boolean existsByArticleIdAndContentHash(ArticleId articleId, String contentHash);
 
-    List<KnowledgeArticleChunkEntity> findByArticleIdOrderByChunkIndexAsc(UUID articleId);
+    List<KnowledgeArticleChunkEntity> findByArticleIdOrderByChunkIndexAsc(ArticleId articleId);
 
     @Modifying
     @Query("delete from KnowledgeArticleChunkEntity chunk where chunk.articleId = :articleId")
-    void deleteByArticleId(UUID articleId);
+    void deleteByArticleId(ArticleId articleId);
 
     @Query(
             value = """

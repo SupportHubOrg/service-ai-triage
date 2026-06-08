@@ -10,8 +10,9 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 /**
- * Identity of a projected ticket conversation message. Mapped as an {@code @EmbeddedId} so the domain
- * works with the value object while the database stores the raw UUID column.
+ * Identity of a projected ticket conversation message. Mapped as an {@code @Embeddable} so the domain
+ * works with the value object while the database stores the raw UUID column (Hibernate forbids
+ * attribute converters on identifier attributes).
  */
 @Embeddable
 @EqualsAndHashCode
@@ -20,7 +21,6 @@ public final class MessageId {
 
     @Column(name = "message_id")
     private UUID value;
-
 
     private MessageId(UUID value) {
         if (value == null) {

@@ -9,6 +9,14 @@ import com.supporthub.triage.knowledge.persistence.KnowledgeArticleTagEntity;
 import com.supporthub.triage.knowledge.persistence.KnowledgeArticleTagRepository;
 import com.supporthub.triage.messaging.event.KnowledgeArticleApprovedPayload;
 import com.supporthub.triage.messaging.inbox.core.context.InboxEventContext;
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.ChunkId;
+import com.supporthub.triage.shared.identity.DraftId;
+import com.supporthub.triage.shared.identity.OrganizationId;
+import com.supporthub.triage.shared.identity.TagId;
+import com.supporthub.triage.shared.identity.TicketId;
+import com.supporthub.triage.shared.identity.UserId;
+import com.supporthub.triage.shared.identity.VectorDocumentId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,19 +45,21 @@ public class KnowledgeArticleProjection {
     public void project(KnowledgeArticleApprovedPayload payload, InboxEventContext context) {
         validate(payload);
 
+        var articleId = ArticleId.of(payload.articleId());
+        var organizationId = OrganizationId.of(payload.organizationId());
         var now = Instant.now(clock);
         var approvedAt = context.timestamp();
         var normalizedContent = payload.articleContent().trim();
         var articleHash = contentHash.sha256(normalizedContent);
         var chunks = chunker.chunk(normalizedContent);
 
-        var article = articleRepository.findById(payload.articleId())
+        var article = articleRepository.findById(articleId)
                 .orElseGet(() -> KnowledgeArticleEntity.approved(
-                        payload.articleId(),
-                        payload.organizationId(),
-                        payload.draftId(),
-                        payload.sourceTicketId(),
-                        payload.publishedById(),
+                        articleId,
+                        organizationId,
+                        draftId(payload),
+                        sourceTicketId(payload),
+                        UserId.of(payload.publishedById()),
                         payload.title(),
                         normalizedContent,
                         articleHash,
@@ -59,16 +69,16 @@ public class KnowledgeArticleProjection {
                 ));
 
         if (article.hasContentHash(articleHash)
-                && chunkRepository.existsByArticleIdAndContentHash(payload.articleId(), articleHash)
-                && tagsAlreadyProjected(payload)) {
+                && chunkRepository.existsByArticleIdAndContentHash(articleId, articleHash)
+                && tagsAlreadyProjected(payload, articleId)) {
             return;
         }
 
         article.applyApproved(
-                payload.organizationId(),
-                payload.draftId(),
-                payload.sourceTicketId(),
-                payload.publishedById(),
+                organizationId,
+                draftId(payload),
+                sourceTicketId(payload),
+                UserId.of(payload.publishedById()),
                 payload.title(),
                 normalizedContent,
                 articleHash,
@@ -77,19 +87,19 @@ public class KnowledgeArticleProjection {
                 now
         );
         articleRepository.save(article);
-        chunkRepository.deleteByArticleId(payload.articleId());
-        chunkRepository.saveAll(toEntities(payload, articleHash, chunks, now));
-        tagRepository.deleteByArticleId(payload.articleId());
-        tagRepository.saveAll(toTagEntities(payload, now));
+        chunkRepository.deleteByArticleId(articleId);
+        chunkRepository.saveAll(toEntities(articleId, organizationId, articleHash, chunks, now));
+        tagRepository.deleteByArticleId(articleId);
+        tagRepository.saveAll(toTagEntities(payload, articleId, organizationId, now));
     }
 
     @Transactional(readOnly = true)
-    public List<KnowledgeArticleChunkEntity> findChunks(UUID articleId) {
+    public List<KnowledgeArticleChunkEntity> findChunks(ArticleId articleId) {
         return chunkRepository.findByArticleIdOrderByChunkIndexAsc(articleId);
     }
 
     @Transactional(readOnly = true)
-    public List<UUID> findTagIds(UUID articleId) {
+    public List<TagId> findTagIds(ArticleId articleId) {
         return tagRepository.findByIdArticleId(articleId)
                 .stream()
                 .map(tag -> tag.getId().getTagId())
@@ -116,56 +126,70 @@ public class KnowledgeArticleProjection {
         }
     }
 
-    private List<KnowledgeArticleChunkEntity> toEntities(KnowledgeArticleApprovedPayload payload,
+    private DraftId draftId(KnowledgeArticleApprovedPayload payload) {
+        return payload.draftId() == null ? null : DraftId.of(payload.draftId());
+    }
+
+    private TicketId sourceTicketId(KnowledgeArticleApprovedPayload payload) {
+        return payload.sourceTicketId() == null ? null : TicketId.of(payload.sourceTicketId());
+    }
+
+    private List<KnowledgeArticleChunkEntity> toEntities(ArticleId articleId,
+                                                         OrganizationId organizationId,
                                                          String articleHash,
                                                          List<KnowledgeArticleChunk> chunks,
                                                          Instant now) {
         return chunks.stream()
-                .map(chunk -> toEntity(payload, articleHash, chunks.size(), chunk, now))
+                .map(chunk -> toEntity(articleId, organizationId, articleHash, chunks.size(), chunk, now))
                 .toList();
     }
 
-    private KnowledgeArticleChunkEntity toEntity(KnowledgeArticleApprovedPayload payload,
+    private KnowledgeArticleChunkEntity toEntity(ArticleId articleId,
+                                                 OrganizationId organizationId,
                                                  String articleHash,
                                                  int chunkCount,
                                                  KnowledgeArticleChunk chunk,
                                                  Instant now) {
         var chunkHash = contentHash.sha256(chunk.content());
-        var chunkId = stableChunkId(payload.articleId(), chunk.index(), articleHash);
+        var stableId = stableChunkUuid(articleId, chunk.index(), articleHash);
 
         return KnowledgeArticleChunkEntity.pending(
-                chunkId,
-                payload.articleId(),
-                payload.organizationId(),
+                ChunkId.of(stableId),
+                articleId,
+                organizationId,
                 chunk.index(),
                 chunkCount,
                 chunk.content(),
                 chunkHash,
-                chunkId,
+                VectorDocumentId.of(stableId),
                 ragProperties.embedding().model(),
                 ragProperties.embedding().dimensions(),
                 now
         );
     }
 
-    private UUID stableChunkId(UUID articleId, int chunkIndex, String articleHash) {
+    private UUID stableChunkUuid(ArticleId articleId, int chunkIndex, String articleHash) {
         var value = "%s:%s:%d:%s".formatted(CHUNK_ID_PREFIX, articleId, chunkIndex, articleHash);
         return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8));
     }
 
-    private boolean tagsAlreadyProjected(KnowledgeArticleApprovedPayload payload) {
-        var currentTags = findTagIds(payload.articleId());
-        return currentTags.size() == tagIds(payload).size() && currentTags.containsAll(tagIds(payload));
+    private boolean tagsAlreadyProjected(KnowledgeArticleApprovedPayload payload, ArticleId articleId) {
+        var currentTags = findTagIds(articleId);
+        var expectedTags = tagIds(payload);
+        return currentTags.size() == expectedTags.size() && currentTags.containsAll(expectedTags);
     }
 
-    private List<KnowledgeArticleTagEntity> toTagEntities(KnowledgeArticleApprovedPayload payload, Instant now) {
+    private List<KnowledgeArticleTagEntity> toTagEntities(KnowledgeArticleApprovedPayload payload,
+                                                          ArticleId articleId,
+                                                          OrganizationId organizationId,
+                                                          Instant now) {
         return tagIds(payload)
                 .stream()
-                .map(tagId -> KnowledgeArticleTagEntity.of(payload.articleId(), tagId, payload.organizationId(), now))
+                .map(tagId -> KnowledgeArticleTagEntity.of(articleId, tagId, organizationId, now))
                 .toList();
     }
 
-    private List<UUID> tagIds(KnowledgeArticleApprovedPayload payload) {
+    private List<TagId> tagIds(KnowledgeArticleApprovedPayload payload) {
         if (payload.tags() == null) {
             return List.of();
         }
@@ -173,6 +197,7 @@ public class KnowledgeArticleProjection {
                 .stream()
                 .filter(tagId -> tagId != null)
                 .distinct()
+                .map(TagId::of)
                 .toList();
     }
 }

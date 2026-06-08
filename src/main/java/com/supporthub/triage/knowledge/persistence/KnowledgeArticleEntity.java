@@ -1,17 +1,23 @@
 package com.supporthub.triage.knowledge.persistence;
 
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.DraftId;
+import com.supporthub.triage.shared.identity.OrganizationId;
+import com.supporthub.triage.shared.identity.TicketId;
+import com.supporthub.triage.shared.identity.UserId;
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "knowledge_article_projection")
@@ -19,21 +25,21 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class KnowledgeArticleEntity {
 
-    @Id
-    @Column(name = "article_id", nullable = false)
-    private UUID articleId;
+    @EmbeddedId
+    private ArticleId articleId;
 
     @Column(name = "organization_id", nullable = false)
-    private UUID organizationId;
+    private OrganizationId organizationId;
 
     @Column(name = "draft_id")
-    private UUID draftId;
+    private DraftId draftId;
 
-    @Column(name = "source_ticket_id")
-    private UUID sourceTicketId;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "source_ticket_id"))
+    private TicketId sourceTicketId;
 
     @Column(name = "published_by_id", nullable = false)
-    private UUID publishedById;
+    private UserId publishedById;
 
     @Column(name = "title", nullable = false)
     private String title;
@@ -60,11 +66,11 @@ public class KnowledgeArticleEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public static KnowledgeArticleEntity approved(UUID articleId,
-                                                  UUID organizationId,
-                                                  UUID draftId,
-                                                  UUID sourceTicketId,
-                                                  UUID publishedById,
+    public static KnowledgeArticleEntity approved(ArticleId articleId,
+                                                  OrganizationId organizationId,
+                                                  DraftId draftId,
+                                                  TicketId sourceTicketId,
+                                                  UserId publishedById,
                                                   String title,
                                                   String articleContent,
                                                   String contentHash,
@@ -89,10 +95,10 @@ public class KnowledgeArticleEntity {
         return article;
     }
 
-    public void applyApproved(UUID organizationId,
-                              UUID draftId,
-                              UUID sourceTicketId,
-                              UUID publishedById,
+    public void applyApproved(OrganizationId organizationId,
+                              DraftId draftId,
+                              TicketId sourceTicketId,
+                              UserId publishedById,
                               String title,
                               String articleContent,
                               String contentHash,

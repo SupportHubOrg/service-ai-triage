@@ -8,7 +8,14 @@ import com.supporthub.triage.messaging.event.TagCreatedPayload;
 import com.supporthub.triage.messaging.event.TagDeletedPayload;
 import com.supporthub.triage.messaging.inbox.core.context.InboxConsumers;
 import com.supporthub.triage.messaging.inbox.core.processing.InboxMessageProcessor;
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.MessageId;
+import com.supporthub.triage.shared.identity.OrganizationId;
+import com.supporthub.triage.shared.identity.TagId;
+import com.supporthub.triage.shared.identity.TicketId;
+import com.supporthub.triage.shared.identity.UserId;
 import com.supporthub.triage.tag.application.OrganizationTagProjection;
+import com.supporthub.triage.ticket.application.TicketProjection;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -69,6 +76,9 @@ class AiTriageApplicationTests {
     private KnowledgeArticleEmbeddingIndexer articleEmbeddingIndexer;
 
     @Autowired
+    private TicketProjection ticketProjection;
+
+    @Autowired
     private CapturingVectorStore capturingVectorStore;
 
     @Autowired
@@ -91,7 +101,7 @@ class AiTriageApplicationTests {
         tagProjection.project(new TagAiSettingUpdatedPayload(excludedTagId, organizationId, UUID.randomUUID(), true));
         tagProjection.project(new TagDeletedPayload(deletedTagId, organizationId, UUID.randomUUID()));
 
-        var tags = tagProjection.findAiEligibleTags(organizationId);
+        var tags = tagProjection.findAiEligibleTags(OrganizationId.of(organizationId));
 
         assertThat(tags)
                 .singleElement()
@@ -106,7 +116,7 @@ class AiTriageApplicationTests {
         tagProjection.project(new TagAiSettingUpdatedPayload(tagId, organizationId, UUID.randomUUID(), true));
         tagProjection.project(new TagCreatedPayload(tagId, organizationId, "Sensitive"));
 
-        assertThat(tagProjection.findAiEligibleTags(organizationId)).isEmpty();
+        assertThat(tagProjection.findAiEligibleTags(OrganizationId.of(organizationId))).isEmpty();
     }
 
     @Test
@@ -135,9 +145,100 @@ class AiTriageApplicationTests {
                 new ConsumerRecord<>("ticket-management-events", 0, 0L, null, event)
         );
 
-        assertThat(tagProjection.findAiEligibleTags(organizationId))
+        assertThat(tagProjection.findAiEligibleTags(OrganizationId.of(organizationId)))
                 .singleElement()
                 .satisfies(tag -> assertThat(tag.name()).isEqualTo("Network"));
+    }
+
+    @Test
+    void projectsTicketAnalysisInputFromTicketManagementEvents() {
+        var organizationId = UUID.randomUUID();
+        var ticketId = UUID.randomUUID();
+        var creatorId = UUID.randomUUID();
+        var messageId = UUID.randomUUID();
+        var senderId = UUID.randomUUID();
+        var firstTagId = UUID.randomUUID();
+        var secondTagId = UUID.randomUUID();
+
+        inboxMessageProcessor.process(
+                InboxConsumers.TICKET_MANAGEMENT,
+                new ConsumerRecord<>("ticket-management-events", 0, 10L, null, """
+                        {
+                          "metadata": {
+                            "eventId": "%s",
+                            "eventType": "TicketCreated",
+                            "version": 1,
+                            "timestamp": "2026-06-08T11:00:00Z",
+                            "source": "ticket-management-service"
+                          },
+                          "payload": {
+                            "ticketId": "%s",
+                            "organizationId": "%s",
+                            "creatorId": "%s",
+                            "subject": "Cannot receive email",
+                            "description": "Customer reports missing inbound messages."
+                          }
+                        }
+                        """.formatted(UUID.randomUUID(), ticketId, organizationId, creatorId))
+        );
+        inboxMessageProcessor.process(
+                InboxConsumers.TICKET_MANAGEMENT,
+                new ConsumerRecord<>("ticket-management-events", 0, 11L, null, """
+                        {
+                          "metadata": {
+                            "eventId": "%s",
+                            "eventType": "TicketMessageAdded",
+                            "version": 1,
+                            "timestamp": "2026-06-08T11:05:00Z",
+                            "source": "ticket-management-service"
+                          },
+                          "payload": {
+                            "ticketId": "%s",
+                            "organizationId": "%s",
+                            "messageId": "%s",
+                            "senderId": "%s",
+                            "senderType": "Employee",
+                            "message": "Emails from the vendor are bouncing."
+                          }
+                        }
+                        """.formatted(UUID.randomUUID(), ticketId, organizationId, messageId, senderId))
+        );
+        inboxMessageProcessor.process(
+                InboxConsumers.TICKET_MANAGEMENT,
+                new ConsumerRecord<>("ticket-management-events", 0, 12L, null, """
+                        {
+                          "metadata": {
+                            "eventId": "%s",
+                            "eventType": "TicketTagUpdated",
+                            "version": 1,
+                            "timestamp": "2026-06-08T11:06:00Z",
+                            "source": "ticket-management-service"
+                          },
+                          "payload": {
+                            "ticketId": "%s",
+                            "organizationId": "%s",
+                            "updatedById": "%s",
+                            "currentTags": ["%s", "%s"]
+                          }
+                        }
+                        """.formatted(UUID.randomUUID(), ticketId, organizationId, UUID.randomUUID(), firstTagId, secondTagId))
+        );
+
+        assertThat(ticketProjection.findAnalysisInput(TicketId.of(ticketId)))
+                .hasValueSatisfying(input -> {
+                    assertThat(input.organizationId()).isEqualTo(OrganizationId.of(organizationId));
+                    assertThat(input.creatorId()).isEqualTo(UserId.of(creatorId));
+                    assertThat(input.subject()).isEqualTo("Cannot receive email");
+                    assertThat(input.description()).contains("missing inbound messages");
+                    assertThat(input.messages())
+                            .singleElement()
+                            .satisfies(message -> {
+                                assertThat(message.messageId()).isEqualTo(MessageId.of(messageId));
+                                assertThat(message.senderType()).isEqualTo("Employee");
+                                assertThat(message.message()).contains("vendor are bouncing");
+                            });
+                    assertThat(input.tagIds()).containsExactlyInAnyOrder(TagId.of(firstTagId), TagId.of(secondTagId));
+                });
     }
 
     @Test
@@ -185,10 +286,10 @@ class AiTriageApplicationTests {
                 new ConsumerRecord<>("knowledge-base-events", 0, 0L, null, event)
         );
 
-        assertThat(articleProjection.findChunks(articleId))
+        assertThat(articleProjection.findChunks(ArticleId.of(articleId)))
                 .singleElement()
                 .satisfies(chunk -> {
-                    assertThat(chunk.getOrganizationId()).isEqualTo(organizationId);
+                    assertThat(chunk.getOrganizationId()).isEqualTo(OrganizationId.of(organizationId));
                     assertThat(chunk.getChunkIndex()).isZero();
                     assertThat(chunk.getChunkCount()).isEqualTo(1);
                     assertThat(chunk.getEmbeddingModel()).isEqualTo("text-embedding-3-small");
@@ -196,8 +297,8 @@ class AiTriageApplicationTests {
                     assertThat(chunk.getIndexStatus()).isEqualTo(KnowledgeArticleChunkIndexStatus.PENDING);
                     assertThat(chunk.getContent()).contains("Request a reset link");
                 });
-        assertThat(articleProjection.findTagIds(articleId))
-                .containsExactlyInAnyOrder(firstTagId, secondTagId);
+        assertThat(articleProjection.findTagIds(ArticleId.of(articleId)))
+                .containsExactlyInAnyOrder(TagId.of(firstTagId), TagId.of(secondTagId));
     }
 
     @Test
@@ -243,7 +344,7 @@ class AiTriageApplicationTests {
         var indexed = articleEmbeddingIndexer.indexPendingChunks();
 
         assertThat(indexed).isPositive();
-        assertThat(articleProjection.findChunks(articleId))
+        assertThat(articleProjection.findChunks(ArticleId.of(articleId)))
                 .singleElement()
                 .satisfies(chunk -> {
                     assertThat(chunk.getIndexStatus()).isEqualTo(KnowledgeArticleChunkIndexStatus.INDEXED);
@@ -299,7 +400,7 @@ class AiTriageApplicationTests {
         inboxMessageProcessor.process(InboxConsumers.KNOWLEDGE_MANAGEMENT, record);
         inboxMessageProcessor.process(InboxConsumers.KNOWLEDGE_MANAGEMENT, record);
 
-        assertThat(articleProjection.findChunks(articleId)).hasSize(1);
+        assertThat(articleProjection.findChunks(ArticleId.of(articleId))).hasSize(1);
     }
 
     @Test

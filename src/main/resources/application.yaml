@@ -78,6 +78,15 @@ application:
       knowledge-article-approved:
         event-type: ${EVENT_KNOWLEDGE_ARTICLE_APPROVED:KnowledgeArticleApproved}
         version: ${EVENT_KNOWLEDGE_ARTICLE_APPROVED_VERSION:1}
+      ticket-created:
+        event-type: ${EVENT_TICKET_CREATED:TicketCreated}
+        version: ${EVENT_TICKET_CREATED_VERSION:1}
+      ticket-message-added:
+        event-type: ${EVENT_TICKET_MESSAGE_ADDED:TicketMessageAdded}
+        version: ${EVENT_TICKET_MESSAGE_ADDED_VERSION:1}
+      ticket-tag-updated:
+        event-type: ${EVENT_TICKET_TAG_UPDATED:TicketTagUpdated}
+        version: ${EVENT_TICKET_TAG_UPDATED_VERSION:1}
   inbox:
     ignored-events:
       ai-triage.knowledge-management:

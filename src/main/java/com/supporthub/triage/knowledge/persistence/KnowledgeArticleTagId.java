@@ -1,14 +1,15 @@
 package com.supporthub.triage.knowledge.persistence;
 
-import jakarta.persistence.Column;
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.TagId;
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.Embedded;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.util.UUID;
 
 @Embeddable
 @Getter
@@ -16,13 +17,13 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class KnowledgeArticleTagId implements Serializable {
 
-    @Column(name = "article_id", nullable = false)
-    private UUID articleId;
+    @Embedded
+    private ArticleId articleId;
 
-    @Column(name = "tag_id", nullable = false)
-    private UUID tagId;
+    @Embedded
+    private TagId tagId;
 
-    public static KnowledgeArticleTagId of(UUID articleId, UUID tagId) {
+    public static KnowledgeArticleTagId of(ArticleId articleId, TagId tagId) {
         var id = new KnowledgeArticleTagId();
         id.articleId = articleId;
         id.tagId = tagId;

@@ -3,6 +3,7 @@ package com.supporthub.triage.knowledge.application;
 import com.supporthub.triage.knowledge.config.RagProperties;
 import com.supporthub.triage.knowledge.persistence.KnowledgeArticleChunkEntity;
 import com.supporthub.triage.knowledge.persistence.KnowledgeArticleChunkRepository;
+import com.supporthub.triage.shared.identity.ChunkId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +12,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -36,14 +36,14 @@ public class KnowledgeArticleIndexingClaimStore {
     }
 
     @Transactional
-    public void markIndexed(Collection<UUID> chunkIds) {
+    public void markIndexed(Collection<ChunkId> chunkIds) {
         var now = Instant.now(clock);
         chunkRepository.findAllById(chunkIds)
                 .forEach(chunk -> chunk.markIndexed(now));
     }
 
     @Transactional
-    public void markFailed(Collection<UUID> chunkIds, String errorMessage) {
+    public void markFailed(Collection<ChunkId> chunkIds, String errorMessage) {
         var now = Instant.now(clock);
         chunkRepository.findAllById(chunkIds)
                 .forEach(chunk -> chunk.markIndexingFailed(errorMessage, now));

@@ -1,17 +1,21 @@
 package com.supporthub.triage.knowledge.persistence;
 
+import com.supporthub.triage.shared.identity.ArticleId;
+import com.supporthub.triage.shared.identity.ChunkId;
+import com.supporthub.triage.shared.identity.OrganizationId;
+import com.supporthub.triage.shared.identity.VectorDocumentId;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "knowledge_article_chunk_projection")
@@ -19,15 +23,14 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class KnowledgeArticleChunkEntity {
 
-    @Id
-    @Column(name = "chunk_id", nullable = false)
-    private UUID chunkId;
+    @EmbeddedId
+    private ChunkId chunkId;
 
-    @Column(name = "article_id", nullable = false)
-    private UUID articleId;
+    @Embedded
+    private ArticleId articleId;
 
     @Column(name = "organization_id", nullable = false)
-    private UUID organizationId;
+    private OrganizationId organizationId;
 
     @Column(name = "chunk_index", nullable = false)
     private int chunkIndex;
@@ -42,7 +45,7 @@ public class KnowledgeArticleChunkEntity {
     private String contentHash;
 
     @Column(name = "vector_document_id", nullable = false)
-    private UUID vectorDocumentId;
+    private VectorDocumentId vectorDocumentId;
 
     @Column(name = "embedding_model", nullable = false)
     private String embeddingModel;
@@ -69,14 +72,14 @@ public class KnowledgeArticleChunkEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public static KnowledgeArticleChunkEntity pending(UUID chunkId,
-                                                      UUID articleId,
-                                                      UUID organizationId,
+    public static KnowledgeArticleChunkEntity pending(ChunkId chunkId,
+                                                      ArticleId articleId,
+                                                      OrganizationId organizationId,
                                                       int chunkIndex,
                                                       int chunkCount,
                                                       String content,
                                                       String contentHash,
-                                                      UUID vectorDocumentId,
+                                                      VectorDocumentId vectorDocumentId,
                                                       String embeddingModel,
                                                       int embeddingDimensions,
                                                       Instant now) {
