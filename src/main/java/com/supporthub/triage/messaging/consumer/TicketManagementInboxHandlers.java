@@ -10,6 +10,9 @@ import com.supporthub.triage.messaging.inbox.core.annotation.InboxConsumer;
 import com.supporthub.triage.messaging.inbox.core.annotation.InboxHandler;
 import com.supporthub.triage.messaging.inbox.core.context.InboxConsumers;
 import com.supporthub.triage.messaging.inbox.core.context.InboxEventContext;
+import com.supporthub.triage.analysis.application.TicketAnalysisJobStore;
+import com.supporthub.triage.shared.identity.OrganizationId;
+import com.supporthub.triage.shared.identity.TicketId;
 import com.supporthub.triage.tag.application.OrganizationTagProjection;
 import com.supporthub.triage.ticket.application.TicketProjection;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +25,15 @@ public class TicketManagementInboxHandlers {
 
     private final OrganizationTagProjection tagProjection;
     private final TicketProjection ticketProjection;
+    private final TicketAnalysisJobStore analysisJobStore;
 
     @InboxHandler
     void onTicketCreated(TicketCreatedPayload payload) {
         ticketProjection.project(payload);
+        analysisJobStore.requestAnalysis(
+                TicketId.of(payload.ticketId()),
+                OrganizationId.of(payload.organizationId())
+        );
     }
 
     @InboxHandler

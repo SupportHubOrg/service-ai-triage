@@ -1,4 +1,6 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
+
+import com.supporthub.triage.ai.common.AiSafeLoggingProperties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -8,5 +10,5 @@ public record TagSuggestionProperties(
         String model,
         Integer maxOutputTokens,
         boolean safeLoggingEnabled
-) {
+) implements AiSafeLoggingProperties {
 }

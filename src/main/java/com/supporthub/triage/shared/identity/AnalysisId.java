@@ -1,19 +1,25 @@
 package com.supporthub.triage.shared.identity;
 
 import com.supporthub.triage.shared.error.BusinessValidationException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
 /**
- * Identity of a single AI triage analysis run. Unlike the other identities this one is never
- * persisted: it is a transient correlation id minted per analysis and carried on the outbound
- * {@code AiAnalysisCompleted}/{@code AiAnalysisFailed} events, so it needs no JPA mapping.
+ * Identity of a single AI triage analysis run. It is persisted as the analysis job identifier and
+ * also carried on outbound {@code AiAnalysisCompleted}/{@code AiAnalysisFailed} events.
  */
+@Embeddable
 @EqualsAndHashCode
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // for JPA
 public final class AnalysisId {
 
-    private final UUID value;
+    @Column(name = "analysis_id")
+    private UUID value;
 
     private AnalysisId(UUID value) {
         if (value == null) {

@@ -1,8 +1,14 @@
 package com.supporthub.triage;
 
+import com.supporthub.triage.analysis.application.TicketAnalysisJobStore;
+import com.supporthub.triage.analysis.application.TicketAnalysisService;
+import com.supporthub.triage.analysis.persistence.TicketAnalysisRepository;
+import com.supporthub.triage.analysis.persistence.TicketAnalysisStatus;
 import com.supporthub.triage.knowledge.application.KnowledgeArticleProjection;
 import com.supporthub.triage.knowledge.application.KnowledgeArticleEmbeddingIndexer;
 import com.supporthub.triage.knowledge.persistence.KnowledgeArticleChunkIndexStatus;
+import com.supporthub.triage.messaging.outbox.core.publisher.OutboxEventPublisher;
+import com.supporthub.triage.messaging.outbox.core.persistence.OutboxEventRepository;
 import com.supporthub.triage.messaging.event.TagAiSettingUpdatedPayload;
 import com.supporthub.triage.messaging.event.TagCreatedPayload;
 import com.supporthub.triage.messaging.event.TagDeletedPayload;
@@ -17,6 +23,9 @@ import com.supporthub.triage.shared.identity.UserId;
 import com.supporthub.triage.tag.application.OrganizationTagProjection;
 import com.supporthub.triage.ticket.application.TicketProjection;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -32,12 +41,15 @@ import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.fail;
 
 @SpringBootTest
 class AiTriageApplicationTests {
@@ -64,6 +76,8 @@ class AiTriageApplicationTests {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
+        registry.add("spring.application.name", () -> "ai-triage-service");
+        registry.add("application.scheduling.enabled", () -> "false");
     }
 
     @Autowired
@@ -77,6 +91,21 @@ class AiTriageApplicationTests {
 
     @Autowired
     private TicketProjection ticketProjection;
+
+    @Autowired
+    private TicketAnalysisJobStore analysisJobStore;
+
+    @Autowired
+    private TicketAnalysisService analysisService;
+
+    @Autowired
+    private TicketAnalysisRepository analysisRepository;
+
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
+
+    @Autowired
+    private OutboxEventPublisher outboxEventPublisher;
 
     @Autowired
     private CapturingVectorStore capturingVectorStore;
@@ -404,6 +433,173 @@ class AiTriageApplicationTests {
     }
 
     @Test
+    void analyzesCreatedTicketAndStoresCompletedEventInOutbox() {
+        var organizationId = UUID.randomUUID();
+        var tagId = UUID.randomUUID();
+        var articleId = UUID.randomUUID();
+        var ticketId = UUID.randomUUID();
+
+        tagProjection.project(new TagCreatedPayload(tagId, organizationId, "Email"));
+        inboxMessageProcessor.process(
+                InboxConsumers.KNOWLEDGE_MANAGEMENT,
+                new ConsumerRecord<>("knowledge-base-events", 0, 20L, null, """
+                        {
+                          "metadata": {
+                            "eventId": "%s",
+                            "eventType": "KnowledgeArticleApproved",
+                            "version": 1,
+                            "timestamp": "2026-06-08T10:18:00Z",
+                            "source": "knowledge-management-service"
+                          },
+                          "payload": {
+                            "articleId": "%s",
+                            "draftId": "%s",
+                            "sourceTicketId": "%s",
+                            "organizationId": "%s",
+                            "publishedById": "%s",
+                            "title": "Email delivery troubleshooting",
+                            "articleContent": "When inbound email is missing, check SPF, MX routing, and retry delivery after DNS propagation.",
+                            "tags": ["%s"]
+                          }
+                        }
+                        """.formatted(
+                        UUID.randomUUID(),
+                        articleId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        organizationId,
+                        UUID.randomUUID(),
+                        tagId
+                ))
+        );
+        articleEmbeddingIndexer.indexPendingChunks();
+
+        inboxMessageProcessor.process(
+                InboxConsumers.TICKET_MANAGEMENT,
+                new ConsumerRecord<>("ticket-management-events", 0, 30L, null, """
+                        {
+                          "metadata": {
+                            "eventId": "%s",
+                            "eventType": "TicketCreated",
+                            "version": 1,
+                            "timestamp": "2026-06-08T11:00:00Z",
+                            "source": "ticket-management-service"
+                          },
+                          "payload": {
+                            "ticketId": "%s",
+                            "organizationId": "%s",
+                            "creatorId": "%s",
+                            "subject": "Email is not delivered",
+                            "description": "Customer reports missing inbound email messages."
+                          }
+                        }
+                        """.formatted(UUID.randomUUID(), ticketId, organizationId, UUID.randomUUID()))
+        );
+        inboxMessageProcessor.process(
+                InboxConsumers.TICKET_MANAGEMENT,
+                new ConsumerRecord<>("ticket-management-events", 0, 31L, null, """
+                        {
+                          "metadata": {
+                            "eventId": "%s",
+                            "eventType": "TicketMessageAdded",
+                            "version": 1,
+                            "timestamp": "2026-06-08T11:05:00Z",
+                            "source": "ticket-management-service"
+                          },
+                          "payload": {
+                            "ticketId": "%s",
+                            "organizationId": "%s",
+                            "messageId": "%s",
+                            "senderId": "%s",
+                            "senderType": "Employee",
+                            "message": "Email from our vendor is not arriving."
+                          }
+                        }
+                        """.formatted(UUID.randomUUID(), ticketId, organizationId, UUID.randomUUID(), UUID.randomUUID()))
+        );
+
+        var claimedTagAnalyses = analysisJobStore.claimTagAnalysisBatch();
+        var analysis = claimedTagAnalyses.stream()
+                .filter(claim -> claim.getTicketId().equals(TicketId.of(ticketId)))
+                .findFirst()
+                .orElseThrow();
+        analysisService.analyzeTags(analysis);
+
+        assertThat(analysisRepository.findById(analysis.getAnalysisId()))
+                .hasValueSatisfying(savedAnalysis -> assertThat(savedAnalysis.getStatus())
+                        .isEqualTo(TicketAnalysisStatus.PENDING_ANSWER_GENERATION));
+        assertThat(analysisJobStore.findSuggestedTags(analysis.getAnalysisId()).tags())
+                .singleElement()
+                .satisfies(tag -> {
+                    assertThat(tag.id()).isEqualTo(TagId.of(tagId));
+                    assertThat(tag.name()).isEqualTo("Email");
+                });
+
+        var claimedAnswerAnalyses = analysisJobStore.claimAnswerGenerationBatch();
+        var answerAnalysis = claimedAnswerAnalyses.stream()
+                .filter(claim -> claim.getAnalysisId().equals(analysis.getAnalysisId()))
+                .findFirst()
+                .orElseThrow();
+        analysisService.generateAnswer(answerAnalysis);
+
+        assertThat(analysisRepository.findById(analysis.getAnalysisId()))
+                .hasValueSatisfying(savedAnalysis -> assertThat(savedAnalysis.getStatus())
+                        .isEqualTo(TicketAnalysisStatus.COMPLETED));
+        var completedOutboxEvents = outboxEventRepository.findAll()
+                .stream()
+                .filter(event -> event.getEventType().equals("AiAnalysisCompleted"))
+                .filter(event -> event.getMessageKey().equals(ticketId.toString()))
+                .toList();
+        assertThat(completedOutboxEvents)
+                .singleElement()
+                .satisfies(event -> assertAiAnalysisCompletedContract(event.getPayload(), ticketId, tagId));
+        var completedOutboxEvent = completedOutboxEvents.get(0);
+
+        try (var consumer = kafkaConsumer("ai-triage-completed-contract-" + UUID.randomUUID())) {
+            consumer.subscribe(List.of("ai-triage-events"));
+            outboxEventPublisher.publishPendingEvents();
+
+            var published = pollRecord(consumer, ticketId.toString());
+            assertThat(published.topic()).isEqualTo("ai-triage-events");
+            assertThat(published.key()).isEqualTo(ticketId.toString());
+            assertThat(published.value()).isEqualTo(completedOutboxEvent.getPayload());
+            assertAiAnalysisCompletedContract(published.value(), ticketId, tagId);
+        }
+    }
+
+    @Test
+    void storesFailedAnalysisEventWhenTicketProjectionIsMissing() {
+        var organizationId = UUID.randomUUID();
+        var ticketId = UUID.randomUUID();
+
+        analysisJobStore.requestAnalysis(TicketId.of(ticketId), OrganizationId.of(organizationId));
+
+        var analysis = analysisJobStore.claimTagAnalysisBatch()
+                .stream()
+                .filter(claim -> claim.getTicketId().equals(TicketId.of(ticketId)))
+                .findFirst()
+                .orElseThrow();
+        analysisService.analyzeTags(analysis);
+
+        assertThat(analysisRepository.findById(analysis.getAnalysisId()))
+                .hasValueSatisfying(savedAnalysis -> assertThat(savedAnalysis.getStatus())
+                        .isEqualTo(TicketAnalysisStatus.FAILED));
+        assertThat(outboxEventRepository.findAll())
+                .filteredOn(event -> event.getEventType().equals("AiAnalysisFailed"))
+                .filteredOn(event -> event.getMessageKey().equals(ticketId.toString()))
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.getTopic()).isEqualTo("ai-triage-events");
+                    assertThat(event.getPayload()).contains("\"eventType\":\"AiAnalysisFailed\"");
+                    assertThat(event.getPayload()).contains("\"version\":1");
+                    assertThat(event.getPayload()).contains("\"ticketId\":\"" + ticketId + "\"");
+                    assertThat(event.getPayload()).contains("\"organizationId\":\"" + organizationId + "\"");
+                    assertThat(event.getPayload()).contains("\"failureCode\":\"INVALID_TICKET_DATA\"");
+                    assertThat(event.getPayload()).contains("\"failureMessage\":\"Ticket projection is missing for analysis\"");
+                });
+    }
+
+    @Test
     void ignoresKnowledgeManagementEventsThatAreNotUsedByTriage() {
         var event = """
                 {
@@ -472,5 +668,44 @@ class AiTriageApplicationTests {
         List<Document> documents() {
             return List.copyOf(documents);
         }
+    }
+
+    private void assertAiAnalysisCompletedContract(String rawJson, UUID ticketId, UUID tagId) {
+        assertThat(rawJson).contains("\"metadata\":");
+        assertThat(rawJson).contains("\"payload\":");
+        assertThat(rawJson).contains("\"eventType\":\"AiAnalysisCompleted\"");
+        assertThat(rawJson).contains("\"version\":1");
+        assertThat(rawJson).contains("\"source\":\"ai-triage-service\"");
+        assertThat(rawJson).contains("\"ticketId\":\"" + ticketId + "\"");
+        assertThat(rawJson).contains("\"tagSuggestions\":[\"" + tagId + "\"]");
+        assertThat(rawJson).contains("\"usedKnowledgeArticleIds\":[]");
+        assertThat(rawJson).contains("\"confidenceScore\":0.5");
+        assertThat(rawJson).doesNotContain("\"tagId\":");
+        assertThat(rawJson).doesNotContain("\"name\":");
+    }
+
+    private KafkaConsumer<String, String> kafkaConsumer(String groupId) {
+        var properties = new Properties();
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        return new KafkaConsumer<>(properties);
+    }
+
+    private ConsumerRecord<String, String> pollRecord(KafkaConsumer<String, String> consumer, String expectedKey) {
+        var deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        while (System.nanoTime() < deadline) {
+            var records = consumer.poll(Duration.ofMillis(250));
+            for (var record : records) {
+                if (expectedKey.equals(record.key())) {
+                    return record;
+                }
+            }
+        }
+        fail("Expected Kafka record with key %s", expectedKey);
+        throw new IllegalStateException("unreachable");
     }
 }

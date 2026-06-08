@@ -1,4 +1,12 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
+
+import com.supporthub.triage.ai.tags.application.TagSuggestionException;
+
+import com.supporthub.triage.ai.tags.application.TagSuggestionContext;
+
+import com.supporthub.triage.ai.tags.application.ConversationMessage;
+
+import com.supporthub.triage.ai.tags.application.CandidateTag;
 
 import com.supporthub.triage.shared.identity.OrganizationId;
 import com.supporthub.triage.shared.identity.TagId;

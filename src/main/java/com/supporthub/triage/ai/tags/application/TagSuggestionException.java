@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.application;
 
 /**
  * Thrown by a {@link TicketTagSuggester} when it cannot produce a usable suggestion (e.g. the AI

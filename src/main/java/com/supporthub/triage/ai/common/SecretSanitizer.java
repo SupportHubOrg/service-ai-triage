@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.common;
 
 import org.springframework.stereotype.Component;
 

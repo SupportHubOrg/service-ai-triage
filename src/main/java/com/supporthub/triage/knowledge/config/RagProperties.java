@@ -13,7 +13,8 @@ import java.time.Duration;
 public record RagProperties(
         @Valid Embedding embedding,
         @Valid Chunking chunking,
-        @Valid Indexing indexing
+        @Valid Indexing indexing,
+        @Valid Retrieval retrieval
 ) {
 
     public record Embedding(
@@ -41,6 +42,14 @@ public record RagProperties(
             Duration lockAtMostFor,
             Duration lockAtLeastFor,
             Duration stuckTimeout
+    ) {
+    }
+
+    public record Retrieval(
+            @Min(1) int topK,
+            @Min(1) int maxArticles,
+            @Min(1) int maxExpandedQueries,
+            double similarityThreshold
     ) {
     }
 }

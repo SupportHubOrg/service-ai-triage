@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 

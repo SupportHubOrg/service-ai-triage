@@ -1,10 +1,23 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
+
+import com.supporthub.triage.ai.tags.application.TicketTagSuggester;
+
+import com.supporthub.triage.ai.tags.application.TagSuggestionException;
+
+import com.supporthub.triage.ai.tags.application.TagSuggestionContext;
+
+import com.supporthub.triage.ai.tags.application.SuggestedTags;
+
+import com.supporthub.triage.ai.tags.application.SuggestedTag;
+
+import com.supporthub.triage.ai.tags.application.ConversationMessage;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -28,7 +41,7 @@ public class StubTicketTagSuggester implements TicketTagSuggester {
 
         var transcript = context.conversation().stream()
                 .map(ConversationMessage::message)
-                .filter(message -> message != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.joining("\n"))
                 .toLowerCase(Locale.ROOT);
 

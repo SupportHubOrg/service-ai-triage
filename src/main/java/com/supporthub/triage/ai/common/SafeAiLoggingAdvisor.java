@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.common;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ public class SafeAiLoggingAdvisor implements CallAdvisor {
 
     private static final int ORDER = 20;
 
-    private final TagSuggestionProperties properties;
+    private final AiSafeLoggingProperties properties;
 
     @Override
     public ChatClientResponse adviseCall(ChatClientRequest chatClientRequest, CallAdvisorChain callAdvisorChain) {

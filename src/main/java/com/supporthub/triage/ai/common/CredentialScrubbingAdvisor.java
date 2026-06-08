@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.common;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClientRequest;

@@ -143,9 +143,27 @@ application:
       lock-at-most-for: ${RAG_INDEXING_LOCK_AT_MOST_FOR:PT2M}
       lock-at-least-for: ${RAG_INDEXING_LOCK_AT_LEAST_FOR:PT0S}
       stuck-timeout: ${RAG_INDEXING_STUCK_TIMEOUT:PT10M}
+    retrieval:
+      top-k: ${RAG_RETRIEVAL_TOP_K:30}
+      max-articles: ${RAG_RETRIEVAL_MAX_ARTICLES:3}
+      max-expanded-queries: ${RAG_RETRIEVAL_MAX_EXPANDED_QUERIES:3}
+      similarity-threshold: ${RAG_RETRIEVAL_SIMILARITY_THRESHOLD:0.45}
+  analysis:
+    enabled: ${TICKET_ANALYSIS_ENABLED:false}
+    batch-size: ${TICKET_ANALYSIS_BATCH_SIZE:10}
+    max-attempts: ${TICKET_ANALYSIS_MAX_ATTEMPTS:3}
+    poll-delay-ms: ${TICKET_ANALYSIS_POLL_DELAY_MS:5000}
+    lock-at-most-for: ${TICKET_ANALYSIS_LOCK_AT_MOST_FOR:PT2M}
+    lock-at-least-for: ${TICKET_ANALYSIS_LOCK_AT_LEAST_FOR:PT0S}
+    stuck-timeout: ${TICKET_ANALYSIS_STUCK_TIMEOUT:PT10M}
   ai:
     tag-suggestion:
       provider: ${TAG_SUGGESTION_PROVIDER:stub}
       model: ${TAG_SUGGESTION_MODEL:gpt-5.4-mini}
       max-output-tokens: ${TAG_SUGGESTION_MAX_OUTPUT_TOKENS:1000}
       safe-logging-enabled: ${TAG_SUGGESTION_SAFE_LOGGING_ENABLED:true}
+    answer-generation:
+      provider: ${ANSWER_GENERATION_PROVIDER:stub}
+      model: ${ANSWER_GENERATION_MODEL:gpt-5.4-mini}
+      max-output-tokens: ${ANSWER_GENERATION_MAX_OUTPUT_TOKENS:2500}
+      safe-logging-enabled: ${ANSWER_GENERATION_SAFE_LOGGING_ENABLED:true}

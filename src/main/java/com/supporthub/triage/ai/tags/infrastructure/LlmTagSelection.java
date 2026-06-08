@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
 
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 

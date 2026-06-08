@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.application;
 
 /**
  * One message of a ticket conversation, as input to the tag suggester. Deliberately slim: no ids are

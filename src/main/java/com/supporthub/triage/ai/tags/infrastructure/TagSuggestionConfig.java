@@ -1,4 +1,12 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
+
+import com.supporthub.triage.ai.tags.application.TagSuggestionException;
+
+import com.supporthub.triage.ai.common.SecretSanitizer;
+
+import com.supporthub.triage.ai.common.SafeAiLoggingAdvisor;
+
+import com.supporthub.triage.ai.common.CredentialScrubbingAdvisor;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;

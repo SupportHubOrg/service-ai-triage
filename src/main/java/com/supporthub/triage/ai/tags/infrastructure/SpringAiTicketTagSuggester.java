@@ -1,5 +1,12 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.infrastructure;
 
+import com.supporthub.triage.ai.common.SafeAiLoggingAdvisor;
+import com.supporthub.triage.ai.tags.application.CandidateTag;
+import com.supporthub.triage.ai.tags.application.SuggestedTag;
+import com.supporthub.triage.ai.tags.application.SuggestedTags;
+import com.supporthub.triage.ai.tags.application.TagSuggestionContext;
+import com.supporthub.triage.ai.tags.application.TagSuggestionException;
+import com.supporthub.triage.ai.tags.application.TicketTagSuggester;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openaisdk.OpenAiSdkChatOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,10 +40,10 @@ public class SpringAiTicketTagSuggester implements TicketTagSuggester {
 
     private static final String USER_PROMPT_TEMPLATE = """
             Available tags (choose only from these):
-            %s
+            {catalog}
 
             Ticket conversation:
-            %s
+            {conversation}
 
             Select the tags from the catalog that best match this conversation.
             """;
@@ -62,7 +69,9 @@ public class SpringAiTicketTagSuggester implements TicketTagSuggester {
 
         var selection = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
-                .user(userPrompt(context))
+                .user(user -> user.text(USER_PROMPT_TEMPLATE)
+                        .param("catalog", catalog(context))
+                        .param("conversation", conversation(context)))
                 .options(chatOptions())
                 .advisors(advisor -> advisor.params(advisorContext(context)))
                 .call()
@@ -86,10 +95,6 @@ public class SpringAiTicketTagSuggester implements TicketTagSuggester {
                 SafeAiLoggingAdvisor.CONTEXT_ORGANIZATION_ID, context.organizationId(),
                 SafeAiLoggingAdvisor.CONTEXT_MODEL, properties.model()
         );
-    }
-
-    private String userPrompt(TagSuggestionContext context) {
-        return USER_PROMPT_TEMPLATE.formatted(catalog(context), conversation(context));
     }
 
     private String catalog(TagSuggestionContext context) {

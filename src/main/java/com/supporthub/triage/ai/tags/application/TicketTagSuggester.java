@@ -1,4 +1,4 @@
-package com.supporthub.triage.ai;
+package com.supporthub.triage.ai.tags.application;
 
 /**
  * Port for choosing which of an organization's tags apply to a ticket conversation.
