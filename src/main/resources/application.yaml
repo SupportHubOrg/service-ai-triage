@@ -124,9 +124,10 @@ application:
     stuck-timeout: ${OUTBOX_STUCK_TIMEOUT:PT2M}
     routing:
       triage:
+        # Keyed by the stable @IntegrationEvent contract key, not the env-overridable wire eventType.
         event-topics:
-          AiAnalysisCompleted: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
-          AiAnalysisFailed: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
+          ai-analysis-completed: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
+          ai-analysis-failed: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
   rag:
     embedding:
       model: ${RAG_EMBEDDING_MODEL:text-embedding-3-small}
@@ -142,3 +143,9 @@ application:
       lock-at-most-for: ${RAG_INDEXING_LOCK_AT_MOST_FOR:PT2M}
       lock-at-least-for: ${RAG_INDEXING_LOCK_AT_LEAST_FOR:PT0S}
       stuck-timeout: ${RAG_INDEXING_STUCK_TIMEOUT:PT10M}
+  ai:
+    tag-suggestion:
+      provider: ${TAG_SUGGESTION_PROVIDER:stub}
+      model: ${TAG_SUGGESTION_MODEL:gpt-5.4-mini}
+      max-output-tokens: ${TAG_SUGGESTION_MAX_OUTPUT_TOKENS:1000}
+      safe-logging-enabled: ${TAG_SUGGESTION_SAFE_LOGGING_ENABLED:true}

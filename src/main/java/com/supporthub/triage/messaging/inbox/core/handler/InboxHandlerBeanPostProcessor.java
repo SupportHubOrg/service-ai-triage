@@ -1,8 +1,8 @@
 package com.supporthub.triage.messaging.inbox.core.handler;
 
-import com.supporthub.triage.messaging.event.IntegrationEventConfigurationException;
-import com.supporthub.triage.messaging.event.IntegrationEventContract;
-import com.supporthub.triage.messaging.event.IntegrationEventRegistry;
+import com.supporthub.triage.messaging.event.registry.IntegrationEventConfigurationException;
+import com.supporthub.triage.messaging.event.registry.IntegrationEventContract;
+import com.supporthub.triage.messaging.event.registry.IntegrationEventRegistry;
 import com.supporthub.triage.messaging.inbox.core.annotation.InboxConsumer;
 import com.supporthub.triage.messaging.inbox.core.annotation.InboxHandler;
 import com.supporthub.triage.messaging.inbox.core.context.InboxEventContext;

@@ -13,14 +13,14 @@ public class TriageOutboxRouteResolver implements OutboxRouteResolver {
     private final TriageOutboxRoutingProperties properties;
 
     @Override
-    public OutboxEventRoute resolve(String messageKey, IntegrationEventEnvelope event) {
+    public OutboxEventRoute resolve(String messageKey, String contractKey, IntegrationEventEnvelope event) {
         if (messageKey == null || messageKey.isBlank()) {
             throw new TriageOutboxRoutingException("Message key is required for " + event.eventType());
         }
 
-        var topic = properties.eventTopics().get(event.eventType());
+        var topic = properties.eventTopics().get(contractKey);
         if (topic == null || topic.isBlank()) {
-            throw new TriageOutboxRoutingException("No outbox topic configured for " + event.eventType());
+            throw new TriageOutboxRoutingException("No outbox topic configured for " + contractKey);
         }
 
         return new OutboxEventRoute(topic, messageKey);

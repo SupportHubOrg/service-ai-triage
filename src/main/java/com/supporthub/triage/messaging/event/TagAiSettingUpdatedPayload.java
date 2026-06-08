@@ -1,5 +1,6 @@
 package com.supporthub.triage.messaging.event;
 
+import com.supporthub.triage.messaging.event.annotation.IntegrationEvent;
 import com.fasterxml.jackson.annotation.JsonAlias;
 
 import java.util.UUID;

@@ -1,5 +1,7 @@
 package com.supporthub.triage.messaging.event;
 
+import com.supporthub.triage.messaging.event.annotation.IntegrationEvent;
+
 import java.util.UUID;
 
 @IntegrationEvent("tag-deleted")

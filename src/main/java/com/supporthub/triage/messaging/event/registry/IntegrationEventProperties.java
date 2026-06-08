@@ -1,4 +1,4 @@
-package com.supporthub.triage.messaging.event;
+package com.supporthub.triage.messaging.event.registry;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
