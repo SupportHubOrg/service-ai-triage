@@ -35,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
@@ -78,6 +79,9 @@ class AiTriageApplicationTests {
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         registry.add("spring.application.name", () -> "ai-triage-service");
         registry.add("application.scheduling.enabled", () -> "false");
+        // Placeholder key: the embedding bean fails fast without one, but CapturingVectorStore
+        // never invokes the model, so no real OpenAI call is ever made in this test.
+        registry.add("spring.ai.openai-sdk.api-key", () -> "test-openai-key");
     }
 
     @Autowired
@@ -636,6 +640,7 @@ class AiTriageApplicationTests {
     static class VectorStoreTestConfig {
 
         @Bean
+        @Primary
         CapturingVectorStore capturingVectorStore() {
             return new CapturingVectorStore();
         }
