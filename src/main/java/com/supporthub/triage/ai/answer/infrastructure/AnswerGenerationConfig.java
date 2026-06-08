@@ -28,8 +28,10 @@ import java.util.List;
 @ConditionalOnProperty(prefix = "application.ai.answer-generation", name = "provider", havingValue = "openai")
 class AnswerGenerationConfig {
 
+    private static final String TARGET_SEARCH_SYSTEM = "knowledge-base vector store";
+
     private static final PromptTemplate QUERY_REWRITE_PROMPT = new PromptTemplate("""
-            Rewrite this support ticket into one concise standalone knowledge-base search query.
+            Rewrite this support ticket into one concise standalone search query for {target}.
 
             Preserve product names, error messages, protocols, codes and affected components.
             Use only facts present in the ticket.
@@ -102,6 +104,7 @@ class AnswerGenerationConfig {
                 .queryTransformers(RewriteQueryTransformer.builder()
                         .chatClientBuilder(chatClientBuilder)
                         .promptTemplate(QUERY_REWRITE_PROMPT)
+                        .targetSearchSystem(TARGET_SEARCH_SYSTEM)
                         .build())
                 .queryExpander(MultiQueryExpander.builder()
                         .chatClientBuilder(chatClientBuilder)
