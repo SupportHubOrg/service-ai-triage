@@ -5,6 +5,7 @@ import com.supporthub.triage.messaging.error.RetryableKafkaProcessingException;
 import com.supporthub.triage.messaging.inbox.core.context.InboxEventContext;
 import com.supporthub.triage.messaging.inbox.core.error.InboxHandlerNotFoundException;
 import com.supporthub.triage.messaging.inbox.core.error.InboxMessageFormatException;
+import com.supporthub.triage.messaging.inbox.core.config.InboxIgnoredEventProperties;
 import com.supporthub.triage.messaging.inbox.core.handler.InboxHandlerKey;
 import com.supporthub.triage.messaging.inbox.core.handler.InboxHandlerRegistry;
 import com.supporthub.triage.messaging.inbox.core.model.InboxEventEnvelope;
@@ -25,6 +26,7 @@ public class InboxMessageProcessor {
     private final InboxEventEnvelopeReader envelopeReader;
     private final InboxHandlerRegistry handlerRegistry;
     private final InboxEventStore eventStore;
+    private final InboxIgnoredEventProperties ignoredEventProperties;
 
     @Transactional
     public void process(String consumer, ConsumerRecord<String, String> consumerRecord) {
@@ -33,6 +35,17 @@ public class InboxMessageProcessor {
             var envelope = envelopeReader.read(consumerRecord.value());
             var context = context(consumer, consumerRecord, envelope);
             eventType = context.eventType();
+
+            if (ignoredEventProperties.isIgnored(consumer, context.eventType())) {
+                log.info("Ignored inbox event. consumer={}, eventType={}, eventId={}, topic={}, partition={}, offset={}",
+                        consumer,
+                        context.eventType(),
+                        context.eventId(),
+                        context.topic(),
+                        context.partition(),
+                        context.offset());
+                return;
+            }
 
             if (!eventStore.insertIfNew(context)) {
                 log.info("Duplicate inbox event skipped. consumer={}, eventType={}, eventId={}, topic={}, partition={}, offset={}",

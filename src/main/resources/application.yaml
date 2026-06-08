@@ -8,6 +8,12 @@ spring:
       image: ${SPRING_AI_IMAGE_MODEL:none}
     openai-sdk:
       api-key: ${OPENAI_API_KEY:}
+      embedding:
+        options:
+          model: ${RAG_EMBEDDING_MODEL:text-embedding-3-small}
+    vectorstore:
+      pgvector:
+        dimensions: ${RAG_EMBEDDING_DIMENSIONS:1536}
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/triage}
     username: ${DB_USERNAME:triage}
@@ -69,6 +75,15 @@ application:
       tag-ai-setting-updated:
         event-type: ${EVENT_TAG_AI_SETTING_UPDATED:TagAISettingUpdated}
         version: ${EVENT_TAG_AI_SETTING_UPDATED_VERSION:1}
+      knowledge-article-approved:
+        event-type: ${EVENT_KNOWLEDGE_ARTICLE_APPROVED:KnowledgeArticleApproved}
+        version: ${EVENT_KNOWLEDGE_ARTICLE_APPROVED_VERSION:1}
+  inbox:
+    ignored-events:
+      ai-triage.knowledge-management:
+        - ${EVENT_KNOWLEDGE_ARTICLE_DRAFT_SAVED:KnowledgeArticleDraftSaved}
+        - ${EVENT_KNOWLEDGE_ARTICLE_DRAFT_SAVE_FAILED:KnowledgeArticleDraftSaveFailed}
+        - ${EVENT_KNOWLEDGE_ARTICLE_REJECTED:KnowledgeArticleRejected}
   kafka:
     consumer:
       ticket-management-events: ${KAFKA_TOPIC_TICKET_MANAGEMENT_EVENTS:ticket-management-events}
@@ -103,3 +118,18 @@ application:
         event-topics:
           AiAnalysisCompleted: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
           AiAnalysisFailed: ${KAFKA_TOPIC_AI_TRIAGE_EVENTS:ai-triage-events}
+  rag:
+    embedding:
+      model: ${RAG_EMBEDDING_MODEL:text-embedding-3-small}
+      dimensions: ${RAG_EMBEDDING_DIMENSIONS:1536}
+    chunking:
+      max-chars: ${RAG_CHUNK_MAX_CHARS:1800}
+      overlap-chars: ${RAG_CHUNK_OVERLAP_CHARS:200}
+    indexing:
+      enabled: ${RAG_INDEXING_ENABLED:false}
+      batch-size: ${RAG_INDEXING_BATCH_SIZE:25}
+      max-attempts: ${RAG_INDEXING_MAX_ATTEMPTS:5}
+      poll-delay-ms: ${RAG_INDEXING_POLL_DELAY_MS:5000}
+      lock-at-most-for: ${RAG_INDEXING_LOCK_AT_MOST_FOR:PT2M}
+      lock-at-least-for: ${RAG_INDEXING_LOCK_AT_LEAST_FOR:PT0S}
+      stuck-timeout: ${RAG_INDEXING_STUCK_TIMEOUT:PT10M}
