@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: service-ai-triage
+  name: ai-triage
 spec:
   selector:
-    app: service-ai-triage
+    app: ai-triage
   ports:
     - protocol: TCP
       port: 80

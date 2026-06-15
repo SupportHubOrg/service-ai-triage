@@ -1,22 +1,31 @@
-#Stage 1: Build
-FROM maven:3.9-eclipse-temurin-17 AS build
-WORKDIR /app
+#Stage 1: Build environment
+FROM eclipse-temurin:17-jdk AS build
+WORKDIR /workspace/app
 
-#Copy the pom.xml and download dependencies
+#Copy Maven wrapper and POM to cache dependencies
+COPY mvnw .
+COPY .mvn .mvn
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
 
-#Copy source code and package the application
-COPY src ./src
-RUN mvn clean package -DskipTests
+#Download dependencies offline to leverage Docker layer caching
+RUN ./mvnw dependency:go-offline
 
-#Rename the output jar
-RUN mv target/*.jar target/ai-triage.jar
+#Copy the application source code and compile the JAR
+COPY src src
+RUN ./mvnw clean package -DskipTests
 
-#Stage 2: Final Runtime Image
-FROM eclipse-temurin:17-jre-alpine
+#Stage 2: Production environment
+FROM eclipse-temurin:17-jre-alpine AS final
 WORKDIR /app
-COPY --from=build /app/target/ai-triage.jar app.jar
 
+#Create a restricted non-root user specifically for the Spring Boot application
+RUN addgroup --system spring && adduser --system spring --ingroup spring
+USER spring:spring
+
+#Copy the compiled executable JAR from the build stage
+COPY --from=build /workspace/app/target/ai-triage-0.0.1-SNAPSHOT.jar app.jar
+
+#Expose the standard port
 EXPOSE 8080
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
