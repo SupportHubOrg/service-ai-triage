@@ -7,7 +7,7 @@ data:
   #Infrastructure Routes
   KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap:9092"
   KAFKA_CONSUMER_GROUP: "ai-triage-service"
-  KEYCLOAK_AUTH_URL: "http://keycloak.default.svc.cluster.local:8080/realms/supporthub"
+  KEYCLOAK_AUTH_URL: "http://keycloak.default.svc.cluster.local/realms/supporthub"
   KEYCLOAK_CLIENT_ID: "ai-triage-service"
   #Core Event Topics
   KAFKA_TOPIC_TICKET_MANAGEMENT_EVENTS: "ticket-management-events"
