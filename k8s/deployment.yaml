@@ -26,6 +26,13 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "1280Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1536Mi"
         env:
         - name: JAVA_TOOL_OPTIONS
           value: "-Xmx1024m"
@@ -40,5 +47,5 @@ spec:
             port: 8080
           initialDelaySeconds: 300
           periodSeconds: 10
-          timeoutSeconds: 10
+          timeoutSeconds: 30
           failureThreshold: 60
